@@ -295,7 +295,7 @@ Return normalized action history after `num_reps` times iterations.
 
 - `actions::MixedActionProfile` : Normalized action history after iterations.
 """
-function play(rng::AbstractRNG=Random.GLOBAL_RNG,
+function play(rng::AbstractRNG,
               fp::AbstractFictitiousPlay{N},
               actions::MixedActionProfile{TA,N},
               options::BROptions=BROptions();
@@ -305,6 +305,11 @@ function play(rng::AbstractRNG=Random.GLOBAL_RNG,
         ntuple(i -> copyto!(similar(actions[i], Tout), actions[i]), N)
     play!(rng, fp, actions_copied, options, num_reps=num_reps, t_init=t_init)
 end
+
+play(fp::AbstractFictitiousPlay, actions::MixedActionProfile,
+     options::BROptions=BROptions(); num_reps::Integer=1, t_init::Integer=1) =
+    play(Random.GLOBAL_RNG, fp, actions, options,
+         num_reps=num_reps, t_init=t_init)
 
 """
     play(rng, fp, actions, options, num_reps, t_init)
@@ -324,7 +329,7 @@ Return normalized action history after `num_reps` times iterations.
 
 - `::MixedActionProfile` : Normalized action history after iterations.
 """
-function play(rng::AbstractRNG=Random.GLOBAL_RNG,
+function play(rng::AbstractRNG,
               fp::AbstractFictitiousPlay{N},
               actions::PureActionProfile{N},
               options::BROptions=BROptions();
@@ -332,6 +337,11 @@ function play(rng::AbstractRNG=Random.GLOBAL_RNG,
     mixed_actions = ntuple(i -> pure2mixed(fp.nums_actions[i], actions[i]), N)
     play!(rng, fp, mixed_actions, options, num_reps=num_reps, t_init=t_init)
 end
+
+play(fp::AbstractFictitiousPlay, actions::PureActionProfile,
+     options::BROptions=BROptions(); num_reps::Integer=1, t_init::Integer=1) =
+    play(Random.GLOBAL_RNG, fp, actions, options,
+         num_reps=num_reps, t_init=t_init)
 
 """
     play(rng, fp, actions, options, num_reps, t_init)
@@ -350,7 +360,7 @@ Return normalized action history after `num_reps` times iterations.
 
 - `::MixedActionProfile` : Normalized action history after iterations.
 """
-function play(rng::AbstractRNG=Random.GLOBAL_RNG,
+function play(rng::AbstractRNG,
               fp::AbstractFictitiousPlay{N},
               options::BROptions=BROptions();
               num_reps::Integer=1, t_init::Integer=1) where {N}
@@ -358,6 +368,9 @@ function play(rng::AbstractRNG=Random.GLOBAL_RNG,
           num_reps=num_reps, t_init=t_init)
 end
 
+play(fp::AbstractFictitiousPlay, options::BROptions=BROptions();
+     num_reps::Integer=1, t_init::Integer=1) =
+    play(Random.GLOBAL_RNG, fp, options, num_reps=num_reps, t_init=t_init)
 
 # time_series!
 
@@ -416,7 +429,7 @@ for (ex_TAS, ex_where, ex_T) in (
         (:(MixedActionProfile{TA,N}), (:(N), :(T<:Real), :(TA<:Real)), :(TA)),
         (:(PureActionProfile{N}), (:(N), :(T<:Real)), :(T))
     )
-    @eval function time_series(rng::AbstractRNG=Random.GLOBAL_RNG,
+    @eval function time_series(rng::AbstractRNG,
                                fp::AbstractFictitiousPlay{N,T},
                                ts_length::Integer,
                                init_actions::$(ex_TAS),
@@ -431,6 +444,12 @@ for (ex_TAS, ex_where, ex_T) in (
         time_series!(rng, fp, out, options, t_init=t_init)
     end
 end
+
+time_series(fp::AbstractFictitiousPlay, ts_length::Integer,
+            init_actions::ActionProfile, options::BROptions=BROptions();
+            t_init::Integer=1) =
+    time_series(Random.GLOBAL_RNG, fp, ts_length, init_actions, options,
+                t_init=t_init)
 
 @doc """
     time_series(rng, fp, ts_length, init_actions, options, t_init)
@@ -486,7 +505,7 @@ Return time series of normalized action histories.
 # Returns
 - `::NTuple{N,Matrix{<:Real}}` : Time series of normalized action history.
 """
-function time_series(rng::AbstractRNG=Random.GLOBAL_RNG,
+function time_series(rng::AbstractRNG,
                      fp::AbstractFictitiousPlay{N},
                      ts_length::Integer,
                      options::BROptions=BROptions();
@@ -494,3 +513,7 @@ function time_series(rng::AbstractRNG=Random.GLOBAL_RNG,
     time_series(rng, fp, ts_length, random_mixed_actions(rng, fp.nums_actions),
                 options, t_init=t_init)
 end
+
+time_series(fp::AbstractFictitiousPlay, ts_length::Integer,
+            options::BROptions=BROptions(); t_init::Integer=1) =
+    time_series(Random.GLOBAL_RNG, fp, ts_length, options, t_init=t_init)
