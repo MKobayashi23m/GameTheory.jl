@@ -16,11 +16,11 @@ Abstract type representing revision method.
 abstract type AbstractRevision end
 
 """
-    SequencialRevision
+    AsynchronousRevision
 
-Type representing sequencial revision. Subtype of AbstractRevision.
+Type representing asynchronous revision. Subtype of AbstractRevision.
 """
-struct SequencialRevision <: AbstractRevision end
+struct AsynchronousRevision <: AbstractRevision end
 
 """
     SimultaneousRevision
@@ -60,7 +60,7 @@ Construct a LocalInteraction instance.
 - `g::NormalFormGame` : The game used in the model.
 - `adj_matrix::AbstractMatrix` : Adjacency matrix of the graph in the model.
 - `revision::AbstractRevision` : Arguments to specify the revision method.
-    `SimultaneousRevision()`(default) or `SequencialRevision()`.
+    `SimultaneousRevision()`(default) or `AsynchronousRevision()`.
 
 # Returns
 
@@ -93,7 +93,7 @@ Construct a LocalInteraction instance.
 - `payoff_matrix::Matrix` : The payoff matrix of the game.
 - `adj_matrix::AbstractMatrix` : Adjacency matrix of the graph in the model.
 - `revision::AbstractRevision` : Arguments to specify the revision method.
-    `SimultaneousRevision()`(default) or `SequencialRevision`
+    `SimultaneousRevision()`(default) or `AsynchronousRevision`
 
 # Returns
 
@@ -210,7 +210,7 @@ Update actions of each players `num_reps` times.
 function play!(li::LocalInteraction,
                actions::Vector{<:Integer},
                options::BROptions,
-               player_ind::Union{Vector{<:Integer},Integer},
+               player_ind::Union{AbstractVector{<:Integer},Integer},
                num_reps::Integer=1)
     for t in 1:num_reps
         play!(li, actions, player_ind, options)
@@ -387,7 +387,6 @@ time_series(li::LocalInteraction, ts_length::Integer,
     time_series(Random.GLOBAL_RNG, li, ts_length, init_actions, player_ind_seq,
                 options)
 
-# simultaneous
 """
     time_series(rng, li, ts_length, init_actions[, options])
 
@@ -426,7 +425,6 @@ time_series(li::LocalInteraction{N,T,S,A,TR},
            ) where {N,T,S,A,TR<:SimultaneousRevision} =
     time_series(Random.GLOBAL_RNG, li, ts_length, init_actions, options)
 
-# sequencial(random)
 """
     time_series(rng, li, ts_length, init_actions[, options])
 
@@ -450,7 +448,7 @@ function time_series(rng::AbstractRNG,
                      ts_length::Integer,
                      init_actions::PureActionProfile,
                      options::BROptions=BROptions()
-                    ) where {N,T,S,A,TR<:SequencialRevision}
+                    ) where {N,T,S,A,TR<:AsynchronousRevision}
     player_ind_seq = rand(rng, 1:N, ts_length-1)
     time_series(rng, li, ts_length, init_actions, player_ind_seq, options)
 end
@@ -459,7 +457,7 @@ time_series(li::LocalInteraction{N,T,S,A,TR},
             ts_length::Integer,
             init_actions::PureActionProfile,
             options::BROptions=BROptions()
-           ) where {N,T,S,A,TR<:SequencialRevision} =
+           ) where {N,T,S,A,TR<:AsynchronousRevision} =
     time_series(Random.GLOBAL_RNG, li, ts_length, init_actions, options)
 
 
