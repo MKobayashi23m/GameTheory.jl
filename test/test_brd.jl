@@ -2,6 +2,7 @@
 # Testing best response dynamics  #
 # ------------------------------- #
 
+using Random
 
 @testset "Testing brd.jl" begin
     
@@ -22,24 +23,30 @@
     @testset "Testing KMR model" begin
         
         epsilon = 0.1
+        seed = 1234
         kmr = KMR(payoff_matrix, N, epsilon)
-        action_dist = play(kmr, init_action_dist, num_reps=ts_length)
-        @test sum(action_dist) == 4
-        series = time_series(kmr, ts_length, init_action_dist)
-        for t in 1:3
-            @test sum(series[:, t]) == 4
-        end
+        @test @inferred(play(MersenneTwister(seed), kmr, init_action_dist,
+                             num_reps=ts_length)) ==
+                play(MersenneTwister(seed), kmr, init_action_dist,
+                             num_reps=ts_length)
+        @test @inferred(time_series(MersenneTwister(seed), kmr, ts_length,
+                                    init_action_dist)) ==
+                time_series(MersenneTwister(seed), kmr, ts_length,
+                                    init_action_dist)
     end
 
     @testset "Testing sampling best response dynamics model" begin
         
         k = 2
+        seed = 1234
         sbrd = SamplingBRD(payoff_matrix, N, k)
-        action_dist = play(sbrd, init_action_dist, num_reps=ts_length)
-        @test sum(action_dist) == 4
-        series = time_series(sbrd, ts_length, init_action_dist)
-        for t in 1:3
-            @test sum(series[:, t]) == 4
-        end
+        @test @inferred(play(MersenneTwister(seed), sbrd, init_action_dist,
+                             num_reps=ts_length)) ==
+                play(MersenneTwister(seed), sbrd, init_action_dist,
+                             num_reps=ts_length)
+        @test @inferred(time_series(MersenneTwister(seed), sbrd, ts_length,
+                                    init_action_dist)) ==
+                time_series(MersenneTwister(seed), sbrd, ts_length,
+                                    init_action_dist)
     end
 end

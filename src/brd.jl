@@ -202,7 +202,7 @@ function play!(rng::AbstractRNG,
                action_dist::Vector{<:Integer},
                options::BROptions=BROptions())
     action_dist[action] -= 1
-    if rand() <= brd.epsilon
+    if rand(rng) <= brd.epsilon
         next_action = rand(rng, 1:brd.num_actions)
     else
         next_action = best_response(brd.player, action_dist, options)
@@ -280,6 +280,15 @@ function play(rng::AbstractRNG,
               init_action_dist::Vector{<:Integer},
               options::BROptions=BROptions();
               num_reps::Integer=1)
+    if length(init_action_dist) != brd.num_actions
+        throw(ArgumentError("The length of init_action_dist must be the number
+                             of actions"))
+    end
+    if sum(init_action_dist) != brd.N
+        throw(ArgumentError("The sum of init_action_dist must be the number of
+                             players"))
+    end
+
     player_ind_seq = rand(rng, 1:brd.N, num_reps)
     for t in 1:num_reps
         action = searchsortedfirst(accumulate(+, init_action_dist),
@@ -356,6 +365,15 @@ function time_series(rng::AbstractRNG,
                      ts_length::Integer,
                      init_action_dist::Vector{<:Integer},
                      options::BROptions=BROptions())
+    if length(init_action_dist) != brd.num_actions
+        throw(ArgumentError("The length of init_action_dist must be the number
+                             of actions"))
+    end
+    if sum(init_action_dist) != brd.N
+        throw(ArgumentError("The sum of init_action_dist must be the number of
+                             players"))
+    end
+    
     player_ind_seq = rand(rng, 1:brd.N, ts_length)
     out = Matrix{Int}(undef, brd.num_actions, ts_length)
     for i in 1:brd.num_actions
@@ -393,7 +411,7 @@ function time_series(rng::AbstractRNG,
                      options::BROptions=BROptions())
     player_ind_seq = rand(rng, 1:brd.N, ts_length)
     nums_actions = ntuple(i -> brd.num_actions, brd.N)
-    init_actions = random_pure_actions(nums_actions)
+    init_actions = random_pure_actions(rng, nums_actions)
     action_dist = zeros(Int, brd.num_actions)
     for i in 1:brd.N
         action_dist[actions[i]] += 1
