@@ -7,15 +7,16 @@
 """
     LogitDynamics{N, T, S}
 
-Type representing Logit-Dynamics model.
+Type representing the Logit-Dynamics model.
 
 # Fields
 
-- `players::NTuple{N,Player{N,T}}` : Tuple of player instances.
-- `nums_actions::NTuple{N,Int}` : Tuple of integers which are the number of
-    actions for each player.
-- `beta::S` : The level of noise in players' decision.
-- `choice_probs` : Each players' choice probabilities for each actions.
+- `players::NTuple{N,Player{N,T}}` : Tuple of `Player` instances.
+- `nums_actions::NTuple{N,Int}` : Tuple of the numbers of actions, one for each
+  player.
+- `beta<:Real` : The level of noise in a player's decision.
+- `choice_probs::Vector{Array}` : The choice probabilities of each action, one
+  for each player.
 """
 struct LogitDynamics{N,T<:Real,S<:Real}
     players::NTuple{N,Player{N,T}}
@@ -36,7 +37,7 @@ Construct a `LogitDynamics` instance.
 
 # Returns
 
-- `::LogitDynamics` : New `LogitDynamics` instance.
+- `::LogitDynamics` : The Logit-Dynamics model.
 """
 function LogitDynamics(g::NormalFormGame{N,T}, beta::S) where {N,T<:Real,S<:Real}
     choice_probs = Vector{Array}(undef, N)
@@ -52,19 +53,19 @@ end
 """
     play!(rng, ld, player_ind, actions)
 
-Return new action of player indexed by `player_ind` given each players' choice
+Return a new action of player indexed by `player_ind` given each players' choice
 probabilities.
 
 # Arguments
 
 - `rng::AbstractRNG` : Random number generator used.
 - `ld::LogitDynamics{N}` : `LogitDynamics` instance.
-- `player_ind::Integer` : Player index who takes action.
-- `actions::Vector{<:Integer}` : Vector of actions for each players.
+- `player_ind::Integer` : A player index who takes an action.
+- `actions::Vector{<:Integer}` : The action profile.
 
 # Returns
 
-- `::Integer` : The new action of player indexed by `player_ind`.
+- `::Integer` : The new action of the player indexed by `player_ind`.
 """
 function play!(rng::AbstractRNG, ld::LogitDynamics{N}, player_ind::Integer,
                actions::Vector{<:Integer}) where N
@@ -76,7 +77,7 @@ function play!(rng::AbstractRNG, ld::LogitDynamics{N}, player_ind::Integer,
 end
 
 """
-    play([rng,] ld, init_actions; num_reps)
+    play([rng=Random.GLOBAL_RNG,] ld, init_actions[; num_reps=1])
 
 Return new action profile after `num_reps` iterations.
 
@@ -85,7 +86,7 @@ Return new action profile after `num_reps` iterations.
 - `rng::AbstractRNG` : Random number generator used.
 - `ld::LogitDynamics{N}` : `LogitDynamics` instance.
 - `init_actions::Games.PureActionProfile` : Initial action profile.
-- `num_reps::Integer` : The number of iterations; defaults to 1.
+- `num_reps::Integer` : The number of iterations.
 
 # Returns
 
@@ -110,16 +111,17 @@ play(ld::LogitDynamics, init_actions::Games.PureActionProfile;
 """
     time_series!(rng, ld, out, player_ind_seq)
 
-Update `out` which represents the time series of action profile.
+Update the matrix `out` which is used in `time_series` method given a player
+index sequence.
 
 # Arguments
 
 - `rng::AbstractRNG` : Random number generator used.
 - `ld::LogitDynamics{N}` : `LogitDynamics` instance.
-- `out::Matrix{<:Integer}` : Matrix which represents the time series of action
-    profile.
+- `out::Matrix{<:Integer}` : Matrix representing the time series of action
+  profiles.
 - `player_ind_seq::Vector{<:Integer}` : The sequence of player index, which is
-    determined randomly.
+  determined randomly.
 
 # Returns
 
@@ -142,9 +144,9 @@ function time_series!(rng::AbstractRNG,
 end
 
 """
-    time_series([rng,] ld, ts_length, init_actions)
+    time_series([rng=Random.GLOBAL_RNG,] ld, ts_length, init_actions)
 
-Return time series of the action profile
+Return a time series of action profiles.
 
 # Arguments
 
@@ -155,7 +157,7 @@ Return time series of the action profile
 
 # Returns
 
-- `::Matrix{<:Integer} ` : Time series of the action profile.
+- `::Matrix{<:Integer}` : The time series of action profiles.
 """
 function time_series(rng::AbstractRNG,
                      ld::LogitDynamics{N},
