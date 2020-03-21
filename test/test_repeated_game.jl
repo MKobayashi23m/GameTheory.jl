@@ -11,7 +11,7 @@ using CDDLib
 
     # Tests construction of repeated game
     rpd = RepeatedGame(nfg, 0.75)
-    C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0)
+    C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0, Float64)
 
     #
     # Test various helper functions
@@ -26,8 +26,8 @@ using CDDLib
         @test best_dev_i(rpd, 1, 1) == 2
     end
 
-    @testset "Testing unit circle function" begin
-        H = Games.unitcircle(4)
+    @testset "Testing sqpt function" begin
+        H = Games.sqpt(4, Float64)
         points = [1.0 0.0
                   0.0 1.0
                   -1.0 0.0
@@ -37,14 +37,14 @@ using CDDLib
     end
 
     @testset "Testing subgradient and hyperplane level initialize" begin
-        C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0)
+        C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0, Float64)
 
         @test maximum(abs, C - ones(4)) < 1e-12
         @test maximum(abs, H - Z') < 1e-12
     end
 
     @testset "Testing worst value computation" begin
-        @test abs(worst_value_i(rpd, H, C, 1) + 1.0) < 1e-12
+        @test abs(worst_value_i(Float64, rpd, H, C, 1) + 1.0) < 1e-12
     end
 
     #
@@ -54,7 +54,7 @@ using CDDLib
         dict = Dict(:nH=>64, :maxiter=>150, :tol=>1e-9)
         plib = CDDLib.Library()
         for kwargs in [dict, merge(dict, Dict(:plib=>plib))]
-            vertices = @inferred(outerapproximation(rpd; kwargs...))
+            vertices = @inferred(outerapproximation(Float64,rpd; kwargs...))
             p_in_v = [vertices[i, :] for i in 1:size(vertices, 1)]
 
             mybools = [all(isapprox.([3.0, 3.0], p)) for p in p_in_v]
@@ -64,3 +64,68 @@ using CDDLib
 
 end
 
+@testset "Testing Repeated Game functionality (exact arithmetic)" begin
+
+    pd_payoff = [9 1
+                 10 3]
+
+    A = Player(pd_payoff)
+    B = Player(pd_payoff)
+    nfg = NormalFormGame((A, B))
+
+    # Tests construction of repeated game
+    rpd = RepeatedGame(nfg, 3//4)
+    C, H, Z = Games.initialize_sg_hpl(4, [0, 0], 1, Rational)
+
+    #
+    # Test various helper functions
+    #
+    @testset "Testing flow utility computations" begin
+        @test abs(flow_u_1(rpd, 1, 1) - 9) < 1e-14
+        @test abs(flow_u_2(rpd, 2, 2) - 3) < 1e-14
+        @test maximum(abs, flow_u(rpd, 2, 2) - [3, 3]) < 1e-14
+    end
+
+    @testset "Testing best deviation computations" begin
+        @test best_dev_i(rpd, 1, 1) == 2
+    end
+
+    @testset "Testing sqpt function" begin
+        H = Games.sqpt(4, Rational)
+        points = [1 0
+                  0 1
+                  -1 0
+                  0 -1]
+
+        @test maximum(abs, H - points) < 1e-12
+    end
+
+    @testset "Testing subgradient and hyperplane level initialize" begin
+        C, H, Z = Games.initialize_sg_hpl(4, [0, 0], 1, Rational)
+
+        @test maximum(abs, C - ones(4)) < 1e-12
+        @test maximum(abs, H - Z') < 1e-12
+    end
+
+    @testset "Testing worst value computation" begin
+        @test abs(worst_value_i(Rational, rpd, H, C, 1, 
+                                CDDLib.Optimizer{Rational}) + 1.0) < 1e-12
+    end
+
+    #
+    # Test the actual computation
+    #
+    @testset "Testing outer approximation" begin
+        dict = Dict(:nH=>64, :maxiter=>150, :tol=>convert(Rational,1e-9))
+        plib = CDDLib.Library()
+        lp_solver = CDDLib.Optimizer{Rational}
+        for kwargs in [dict, merge(dict, Dict(:plib=>plib))]
+            vertices = @inferred(outerapproximation(Rational,rpd; kwargs...))
+            p_in_v = [vertices[i, :] for i in 1:size(vertices, 1)]
+
+            mybools = [all(isapprox.([3.0, 3.0], p)) for p in p_in_v]
+            @test any(mybools)
+        end
+    end
+
+end

@@ -5,22 +5,27 @@ This file contains code to build and manage repeated games
 
 It currently only has tools for solving two player repeated
 games, but could be extended to do more with some effort.
+
+March, 2020
+Updated to adjust exact arithmetic
+For the implementation, make sure all of your imputs are `Rational` or `Int`.
+Also, use packages like `CDDlib` for calculations.
 =#
 
 """
-    RepeatedGame{N,T}
+    RepeatedGame{N,T,TD}
 
 Type representing an N-player repeated game.
 
 # Fields
 
 - `sg::NormalFormGame{N, T}` : The stage game used to create the repeated game.
-- `delta::Float64` : The common discount rate at which all players discount the
-  future.
+- `delta::TD` : The common discount rate at which all players discount the
+  future. 
 """
-struct RepeatedGame{N, T<:Real}
+struct RepeatedGame{N, T<:Real, TD<:Real}
     sg::NormalFormGame{N, T}
-    delta::Float64
+    delta::TD
 end
 
 # Type alias for 2 player game
@@ -44,14 +49,14 @@ Helper constructor that builds a repeated game for two players.
 
 - `p1::Player` : The first player.
 - `p2::Player` : The second player.
-- `delta::Float64` : The common discount rate at which all players discount the
+- `delta<:Real` : The common discount rate at which all players discount the
   future.
 
 # Returns
 
 - `::RepeatedGame` : The repeated game.
 """
-RepeatedGame(p1::Player, p2::Player, delta::Float64) =
+RepeatedGame(p1::Player, p2::Player, delta<:Real) =
     RepeatedGame(NormalFormGame((p1, p2)), delta)
 
 """
@@ -65,8 +70,8 @@ Helper function that unpacks the elements of a repeated game.
 
 # Returns
 
-- `::Tuple{NormalFormGame, Float64}` : A tuple containing the stage game
-  and the delta.
+- `::Tuple{NormalFormGame, TD<:Real}` : A tuple containing the stage game and 
+the delta.
 """
 unpack(rpd::RepeatedGame) = (rpd.sg, rpd.delta)
 
@@ -93,38 +98,52 @@ best_dev_payoff_2(rpd::RepGame2, a1::Int) =
     maximum(rpd.sg.players[2].payoff_array[:, a1])
 
 """
-    unitcircle(npts)
+    sqpts(npts,TD)
 
-Places `npts` equally spaced points along the 2 dimensional unit circle and
-returns the points with x coordinates in first column and y coordinates in
-second column.
+Places `npts` equally spaced points along the 2 dimensional square with 
+vertices (1,0), (0,1), (-1,0) and (0,-1). This function returns the points 
+with x coordinates in first column and y coordinates in second column.
 
 # Arguments
 
 - `npts::Int` : Number of points to be placed.
-
+- `TD<:Real` : Type of the discount factor in the repeated game.
 # Returns
 
-- `pts::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the coordinates
+- `pts::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the coordinates
   of the points.
 """
-function unitcircle(npts::Int)
-    # Want our points placed on [0, 2π]
-    incr = 2π / npts
-    degrees = 0.0:incr:2π
+function sqpts(npts::Int, TD<:Real)
+    # Want our points placed on [0, 1]
+    incr = convert(TD,1 // npts)
+    degrees = zero(TD):incr:one(TD)
 
-    # Points on circle
-    pts = Array{Float64}(undef, npts, 2)
+    # Points on the first quadrant
+    pts = Array{TD}(undef, 4npts, 2)
     for i=1:npts
         x = degrees[i]
-        pts[i, 1] = cos(x)
-        pts[i, 2] = sin(x)
+        pts[i, 1] = x
+        pts[i, 2] = 1 - x
     end
+    # Points on the second quadrant
+    for i = npts+1:2npts
+        pts[i,1] = -pts[i-npts,1]
+        pts[i,2] = pts[i-npts,2]
+    end
+    # The third quadrant
+    for i = 2npts+1:3npts
+        pts[i,1] = -pts[i-2npts,1]
+        pts[i,2] = -pts[i-2npts,2]
+    end
+    # The fourth quadrants
+    for i = 3npts+1:4npts
+        pts[i,1] = pts[i-3npts,1]
+        pts[i,2] = -pts[i-3npts,2]
     return pts
 end
 
 """
-    initialize_sg_hpl(nH, o, r)
+    initialize_sg_hpl(nH, o, r, TD)
 
 Initializes subgradients, extreme points and hyperplane levels for the
 approximation of the convex value set of a 2 player repeated game.
@@ -132,24 +151,24 @@ approximation of the convex value set of a 2 player repeated game.
 # Arguments
 
 - `nH::Int` : Number of subgradients used for the approximation.
-- `o::Vector{Float64}` : Origin for the approximation.
-- `r::Float64` : Radius for the approximation.
+- `o::Vector{<:Real}` : Origin for the approximation.
+- `r<:Real` : Radius for the approximation.
+- `TD<:Real` : Type of the discount factor
 
 # Returns
 
-- `C::Vector{Float64}` : Vector of length `nH` containing the hyperplane
-  levels.
-- `H::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the subgradients.
-- `Z::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the extreme
-  points of the value set.
+- `C::Vector{TD}` : Vector of length `nH` containing the hyperplane levels.
+- `H::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the subgradients.
+- `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
+  the value set.
 """
-function initialize_sg_hpl(nH::Int, o::Vector{Float64}, r::Float64)
-    # First create unit circle
-    H = unitcircle(nH)
+function initialize_sg_hpl(nH::Int, o::Vector{<:Real}, r<:Real,TD<:Real)
+    # First create points on the square
+    H = sqpts(nH,TD)
     HT = H'
 
     # Choose origin and radius for big approximation
-    Z = Array{Float64}(undef, 2, nH)
+    Z = Array{TD}(undef, 2, nH)
     for i=1:nH
         # We know that players can ever get worse than their
         # lowest punishment, so ignore anything below that
@@ -164,7 +183,7 @@ function initialize_sg_hpl(nH::Int, o::Vector{Float64}, r::Float64)
 end
 
 """
-    initialize_sg_hpl(rpd, nH)
+    initialize_sg_hpl(rpd, nH, TD)
 
 Initializes subgradients, extreme points and hyperplane levels for the
 approximation of the convex value set of a 2 player repeated game by choosing
@@ -174,105 +193,108 @@ an appropriate origin and radius.
 
 - `rpd::RepeatedGame` : Two player repeated game.
 - `nH::Int` : Number of subgradients used for the approximation.
-
+- `TD<:Real` : Type of the discount factor
 # Returns
 
-- `C::Vector{Float64}` : Vector of length `nH` containing the hyperplane
-  levels.
-- `H::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the subgradients.
-- `Z::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the extreme
-  points of the value set.
+- `C::Vector{TD}` : Vector of length `nH` containing the hyperplane levels.
+- `H::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the subgradients.
+- `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of 
+  the value set.
 """
-function initialize_sg_hpl(rpd::RepeatedGame, nH::Int)
+function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD<:Real)
     # Choose the origin to be mean of max and min payoffs
     p1_min, p1_max = extrema(rpd.sg.players[1].payoff_array)
     p2_min, p2_max = extrema(rpd.sg.players[2].payoff_array)
 
-    o = [(p1_min + p1_max)/2.0, (p2_min + p2_max)/2.0]
+    o = [convert(TD,(p1_min + p1_max)//2), convert(TD,(p2_min + p2_max)//2)]
     r1 = max((p1_max - o[1])^2, (o[1] - p1_min)^2)
     r2 = max((p2_max - o[2])^2, (o[2] - p2_min)^2)
-    r = sqrt(r1 + r2)
+    r = convert(TD, sqrt(r1 + r2))
 
-    return initialize_sg_hpl(nH, o, r)
+    return initialize_sg_hpl(nH, o, r,TD)
 end
 
 #
 # Linear Programming Functions
 #
 """
-    initialize_LP_matrices(rpd, H)
+    initialize_LP_matrices(rpd, TD, H)
 
 Initialize matrices for the linear programming problems.
 
 # Arguments
 
 - `rpd::RepeatedGame` : Two player repeated game.
-- `H::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the subgradients
+- `TD<:Real` : Type of the discount factor in the repeated game.
+- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients 
   used to approximate the value set, where `nH` is the number of subgradients.
 
 # Returns
 
-- `c::Vector{Float64}` : Vector of length `nH` used to determine which
+- `c::Vector{TD}` : Vector of length `nH` used to determine which
   subgradient should be used, where `nH` is the number of subgradients.
-- `A::Matrix{Float64}` : Matrix of shape `(nH+2, 2)` with nH set constraints
-  and to be filled with 2 additional incentive compatibility constraints.
-- `b::Vector{Float64}` : Vector of length `nH+2` to be filled with the values
-  for the constraints.
+- `A::Matrix{TD}` : Matrix of shape `(nH+2, 2)` with nH set 
+  constraints and to be filled with 2 additional incentive compatibility 
+  constraints.
+- `b::Vector{TD}` : Vector of length `nH+2` to be filled with 
+  the values for the constraints.
 """
-function initialize_LP_matrices(rpd::RepGame2, H::Matrix{Float64})
+function initialize_LP_matrices(rpd::RepGame2, TD<: Real, H::Matrix{<:Real})
     # Need total number of subgradients
     nH = size(H, 1)
 
     # Create the c vector (objective)
-    c = zeros(2)
+    c = zeros(TD, 2)
 
     # Create the A matrix (constraints)
     A_H = H
-    A_IC_1 = zeros(1, 2)
-    A_IC_2 = zeros(1, 2)
+    A_IC_1 = zeros(TD, 1, 2)
+    A_IC_2 = zeros(TD, 1, 2)
     A_IC_1[1, 1] = -rpd.delta
     A_IC_2[1, 2] = -rpd.delta
     A = vcat(A_H, A_IC_1, A_IC_2)
 
     # Create the b vector (constraints)
-    b = Array{Float64}(undef, nH + 2)
+    b = Array{TD}(undef, nH + 2)
 
     return c, A, b
 end
 
 """
-    worst_value_i(rpd, H, C, i)
+    worst_value_i(TD, rpd, H, C, i)
 
 Given a constraint w ∈ W, this finds the worst possible payoff for agent i.
 
 # Arguments
 
+- `TD<:Real` : Type of the discount factor in the repeated game.
 - `rpd::RepGame2` : Two player repeated game.
-- `H::Matrix{Float64}` : Matrix of shape `(nH, 2)` containing the subgradients
+- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients 
   here `nH` is the number of subgradients.
-- `C::Vector{Float64}` : The array containing the hyperplane levels.
+- `C::Vector{<:Real}` : The array containing the hyperplane levels.
 - `i::Int` : The player of interest.
 - `lp_solver::Union{Type{<:MathOptInterface.AbstractOptimizer},Function}` :
   Linear programming solver to be used internally. Pass a 
   `MathOptInterface.AbstractOptimizer` type (such as `Clp.Optimizer`) if no
   option is needed, or a function (such as `() -> Clp.Optimizer(LogLevel=0)`)
   to supply options.
+  To implement exact arithmetic, use `CDDLib.Optimizer{TD}`, for example.
 
 
 # Returns
 
-- `out::Float64` : Worst possible payoff for player i.
+- `out::TD` : Worst possible payoff for player i.
 """
-function worst_value_i(
-    rpd::RepGame2, H::Matrix{Float64},
-    C::Vector{Float64}, i::Int,
+function worst_value_i(TD:<:Real,
+    rpd::RepGame2, H::Matrix{TD},
+    C::Vector{TD}, i::Int,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer}
     # Objective depends on which player we are minimizing
-    c = zeros(2)
-    c[i] = 1.0
+    c = zeros(TD,2)
+    c[i] = one(TD)
 
-    CACHE = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    CACHE = MOIU.UniversalFallback(MOIU.Model{TD}())
     optimizer = MOIU.CachingOptimizer(CACHE, lp_solver())
 
     # Add variables
@@ -280,15 +302,15 @@ function worst_value_i(
 
     # Define objective function
     MOI.set(optimizer,
-            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0))
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{TD}}(),
+            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), zero(TD)))
     MOI.set(optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
     # Add constraints
     for i in 1:size(H,1)
         MOI.add_constraint(
             optimizer,
-            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(H[i, :],x), 0.0),
+            MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(H[i, :],x), zero(TD)),
             MOI.LessThan(C[i])
         )
     end
@@ -310,17 +332,19 @@ end
 
 "See `worst_value_i` for documentation"
 worst_value_1(
+    TD:<:Real,
     rpd::RepGame2,
-    H::Matrix{Float64},
-    C::Vector{Float64},
+    H::Matrix{TD},
+    C::Vector{TD},
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 1, lp_solver)
 
 "See `worst_value_i` for documentation"
 worst_value_2(
+    TD:<:Real,
     rpd::RepGame2,
-    H::Matrix{Float64},
-    C::Vector{Float64},
+    H::Matrix{TD},
+    C::Vector{TD},
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 2, lp_solver)
 
@@ -328,7 +352,7 @@ worst_value_2(
 # Outer Hyper Plane Approximation
 #
 """
-    outerapproximation(rpd; nH=32, tol=1e-8, maxiter=500, check_pure_nash=true,
+    outerapproximation(TD,rpd; nH=32, tol=convert(TD,1e-8), maxiter=500, check_pure_nash=true,
                        verbose=false, nskipprint=50,
                        plib=default_library(2, Float64),
                        lp_solver=() -> Clp.Optimizer(LogLevel=0))
@@ -338,9 +362,10 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
 
 # Arguments
 
+- `TD<:Real` : Type of the discount factor.
 - `rpd::RepGame2` : Two player repeated game.
 - `nH::Int` : Number of subgradients used for the approximation.
-- `tol::Float64` : Tolerance in differences of set.
+- `tol::TD` : Tolerance in differences of set.
 - `maxiter::Int` : Maximum number of iterations.
 - `check_pure_nash`: Whether to perform a check about whether a pure Nash
   equilibrium exists.
@@ -351,26 +376,29 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
   the geometry computations.
   (See [Polyhedra.jl](https://github.com/JuliaPolyhedra/Polyhedra.jl)
   docs for more info). By default, it chooses to use `Polyhedra.DefaultLibrary`.
+  To implement exact arithmetic, employ a package that support computations of
+  rational numbers, such as `CDDlib`.
 - `lp_solver::Union{<:Type{MathOptInterface.AbstractOptimizer},Function}` :
   Linear programming solver to be used internally. Pass a
   `MathOptInterface.AbstractOptimizer` type (such as `Clp.Optimizer`) if no
   option is needed, or a function (such as `() -> Clp.Optimizer(LogLevel=0)`)
-  to supply options.
+  to supply options. For exact arithmetic, use `CDDLib.Optimizer{TD}`, for 
+  example.
 
 # Returns
 
-- `vertices::Matrix{Float64}` : Vertices of the outer approximation of the
+- `vertices::Matrix{TD}` : Vertices of the outer approximation of the
   value set.
 """
 function outerapproximation(
-        rpd::RepGame2; nH::Int=32, tol::Float64=1e-8, maxiter::Int=500,
-        check_pure_nash::Bool=true, verbose::Bool=false, nskipprint::Int=50,
-        plib::Polyhedra.Library=default_library(2, Float64),
+        TD<:Real, rpd::RepGame2; nH::Int=32, tol::TD=convert(TD,1e-8), 
+        maxiter::Int=500, check_pure_nash::Bool=true, verbose::Bool=false, 
+        nskipprint::Int=50, plib::Polyhedra.Library=default_library(2, Float64),
         lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
     ) where {TO<:MOI.AbstractOptimizer}
 
     # set up optimizer
-    CACHE = MOIU.UniversalFallback(MOIU.Model{Float64}())
+    CACHE = MOIU.UniversalFallback(MOIU.Model{TD}())
     optimizer = MOIU.CachingOptimizer(CACHE, lp_solver())
 
     # Long unpacking of stuff
@@ -393,18 +421,18 @@ function outerapproximation(
     AS = QuantEcon.gridmake(1:nA1, 1:nA2)
 
     # Create the unit circle, points, and hyperplane levels
-    C, H, Z = initialize_sg_hpl(rpd, nH)
+    C, H, Z = initialize_sg_hpl(rpd, nH, TD)
     Cnew = copy(C)
 
     # Create matrices for linear programming
-    c, A, b = initialize_LP_matrices(rpd, H)
+    c, A, b = initialize_LP_matrices(rpd, TD, H)
 
     # Set iterative parameters and iterate until converged
-    iter, dist = 0, 10.0
+    iter, dist = 0, 10
     while (iter < maxiter) & (dist > tol)
         # Compute the current worst values for each agent
-        _w1 = worst_value_1(rpd, H, C, lp_solver)
-        _w2 = worst_value_2(rpd, H, C, lp_solver)
+        _w1 = worst_value_1(TD, rpd, H, C, lp_solver)
+        _w2 = worst_value_2(TD, rpd, H, C, lp_solver)
 
         # Update all set constraints -- Copies elements 1:nH of C into b
         copyto!(b, 1, C, 1, nH)
@@ -421,8 +449,8 @@ function outerapproximation(
             c[2] = -h2
 
             # Allocate space to store all solutions
-            Cia = Array{Float64}(undef, nAS)
-            Wia = Array{Float64}(undef, 2, nAS)
+            Cia = Array{TD}(undef, nAS)
+            Wia = Array{TD}(undef, 2, nAS)
             for ia=1:nAS
                 #
                 # Action specific instruction
@@ -443,8 +471,8 @@ function outerapproximation(
                 # Define objective function
                 MOI.set(
                     optimizer,
-                    MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-                    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0)
+                    MOI.ObjectiveFunction{MOI.ScalarAffineFunction{TD}}(),
+                    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0)
                     )
                 MOI.set(optimizer, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
@@ -452,7 +480,7 @@ function outerapproximation(
                 for i in 1:size(A,1)
                     MOI.add_constraint(optimizer,
                                        MOI.ScalarAffineFunction(
-                                       MOI.ScalarAffineTerm.(A[i, :],x), 0.0),
+                                       MOI.ScalarAffineTerm.(A[i, :],x), 0),
                                        MOI.LessThan(b[i]))
                 end
 
@@ -519,7 +547,7 @@ function outerapproximation(
     tol_int = round(Int, abs(log10(tol))) - 1
 
     # Find vertices that are unique within tolerance level
-    vertices = Matrix{Float64}(undef, (length(pts), 2))
+    vertices = Matrix{TD}(undef, (length(pts), 2))
     for (i, pt) in enumerate(pts)
         vertices[i, :] = round.(pt, digits=tol_int)
     end
