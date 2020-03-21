@@ -21,7 +21,7 @@ Type representing an N-player repeated game.
 
 - `sg::NormalFormGame{N, T}` : The stage game used to create the repeated game.
 - `delta::TD` : The common discount rate at which all players discount the
-  future. 
+  future.
 """
 struct RepeatedGame{N, T<:Real, TD<:Real}
     sg::NormalFormGame{N, T}
@@ -49,14 +49,14 @@ Helper constructor that builds a repeated game for two players.
 
 - `p1::Player` : The first player.
 - `p2::Player` : The second player.
-- `delta<:Real` : The common discount rate at which all players discount the
+- `delta::TD` : The common discount rate at which all players discount the
   future.
 
 # Returns
 
 - `::RepeatedGame` : The repeated game.
 """
-RepeatedGame(p1::Player, p2::Player, delta<:Real) =
+RepeatedGame(p1::Player, p2::Player, delta::TD) where TD<:Real =
     RepeatedGame(NormalFormGame((p1, p2)), delta)
 
 """
@@ -70,7 +70,7 @@ Helper function that unpacks the elements of a repeated game.
 
 # Returns
 
-- `::Tuple{NormalFormGame, TD<:Real}` : A tuple containing the stage game and 
+- `::Tuple{NormalFormGame, TD<:Real}` : A tuple containing the stage game and
 the delta.
 """
 unpack(rpd::RepeatedGame) = (rpd.sg, rpd.delta)
@@ -100,8 +100,8 @@ best_dev_payoff_2(rpd::RepGame2, a1::Int) =
 """
     sqpts(npts,TD)
 
-Places `npts` equally spaced points along the 2 dimensional square with 
-vertices (1,0), (0,1), (-1,0) and (0,-1). This function returns the points 
+Places `npts` equally spaced points along the 2 dimensional square with
+vertices (1,0), (0,1), (-1,0) and (0,-1). This function returns the points
 with x coordinates in first column and y coordinates in second column.
 
 # Arguments
@@ -198,7 +198,7 @@ an appropriate origin and radius.
 
 - `C::Vector{TD}` : Vector of length `nH` containing the hyperplane levels.
 - `H::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the subgradients.
-- `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of 
+- `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
   the value set.
 """
 function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD<:Real)
@@ -226,17 +226,17 @@ Initialize matrices for the linear programming problems.
 
 - `rpd::RepeatedGame` : Two player repeated game.
 - `TD<:Real` : Type of the discount factor in the repeated game.
-- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients 
+- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients
   used to approximate the value set, where `nH` is the number of subgradients.
 
 # Returns
 
 - `c::Vector{TD}` : Vector of length `nH` used to determine which
   subgradient should be used, where `nH` is the number of subgradients.
-- `A::Matrix{TD}` : Matrix of shape `(nH+2, 2)` with nH set 
-  constraints and to be filled with 2 additional incentive compatibility 
+- `A::Matrix{TD}` : Matrix of shape `(nH+2, 2)` with nH set
+  constraints and to be filled with 2 additional incentive compatibility
   constraints.
-- `b::Vector{TD}` : Vector of length `nH+2` to be filled with 
+- `b::Vector{TD}` : Vector of length `nH+2` to be filled with
   the values for the constraints.
 """
 function initialize_LP_matrices(rpd::RepGame2, TD<: Real, H::Matrix{<:Real})
@@ -269,12 +269,12 @@ Given a constraint w ∈ W, this finds the worst possible payoff for agent i.
 
 - `TD<:Real` : Type of the discount factor in the repeated game.
 - `rpd::RepGame2` : Two player repeated game.
-- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients 
+- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients
   here `nH` is the number of subgradients.
 - `C::Vector{<:Real}` : The array containing the hyperplane levels.
 - `i::Int` : The player of interest.
 - `lp_solver::Union{Type{<:MathOptInterface.AbstractOptimizer},Function}` :
-  Linear programming solver to be used internally. Pass a 
+  Linear programming solver to be used internally. Pass a
   `MathOptInterface.AbstractOptimizer` type (such as `Clp.Optimizer`) if no
   option is needed, or a function (such as `() -> Clp.Optimizer(LogLevel=0)`)
   to supply options.
@@ -382,7 +382,7 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
   Linear programming solver to be used internally. Pass a
   `MathOptInterface.AbstractOptimizer` type (such as `Clp.Optimizer`) if no
   option is needed, or a function (such as `() -> Clp.Optimizer(LogLevel=0)`)
-  to supply options. For exact arithmetic, use `CDDLib.Optimizer{TD}`, for 
+  to supply options. For exact arithmetic, use `CDDLib.Optimizer{TD}`, for
   example.
 
 # Returns
@@ -391,8 +391,8 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
   value set.
 """
 function outerapproximation(
-        TD<:Real, rpd::RepGame2; nH::Int=32, tol::TD=convert(TD,1e-8), 
-        maxiter::Int=500, check_pure_nash::Bool=true, verbose::Bool=false, 
+        TD<:Real, rpd::RepGame2; nH::Int=32, tol::TD=convert(TD,1e-8),
+        maxiter::Int=500, check_pure_nash::Bool=true, verbose::Bool=false,
         nskipprint::Int=50, plib::Polyhedra.Library=default_library(2, Float64),
         lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
     ) where {TO<:MOI.AbstractOptimizer}
