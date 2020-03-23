@@ -144,7 +144,7 @@ function sqpts(npts::Int, TD::TP) where TP <:Real
 end
 
 """
-    initialize_sg_hpl(nH, o, r, TD)
+    initialize_sg_hpl(TD, nH, o, r)
 
 Initializes subgradients, extreme points and hyperplane levels for the
 approximation of the convex value set of a 2 player repeated game.
