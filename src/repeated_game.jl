@@ -113,7 +113,7 @@ with x coordinates in first column and y coordinates in second column.
 - `pts::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the coordinates
   of the points.
 """
-function sqpts(npts::Int, TD<:Real)
+function sqpts(npts::Int, TD::TP) where TP <:Real
     # Want our points placed on [0, 1]
     incr = convert(TD,1 // npts)
     degrees = zero(TD):incr:one(TD)
@@ -139,6 +139,7 @@ function sqpts(npts::Int, TD<:Real)
     for i = 3npts+1:4npts
         pts[i,1] = pts[i-3npts,1]
         pts[i,2] = -pts[i-3npts,2]
+    end
     return pts
 end
 
@@ -150,10 +151,11 @@ approximation of the convex value set of a 2 player repeated game.
 
 # Arguments
 
+- `TD::TP` : Type of the discount factor
 - `nH::Int` : Number of subgradients used for the approximation.
-- `o::Vector{<:Real}` : Origin for the approximation.
-- `r<:Real` : Radius for the approximation.
-- `TD<:Real` : Type of the discount factor
+- `o::Vector{<Real}` : Origin for the approximation.
+- `r::TR` : Radius for the approximation.
+
 
 # Returns
 
@@ -162,7 +164,7 @@ approximation of the convex value set of a 2 player repeated game.
 - `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
   the value set.
 """
-function initialize_sg_hpl(nH::Int, o::Vector{<:Real}, r<:Real,TD<:Real)
+function initialize_sg_hpl(TD::TP where TP<:Real, nH::Int, o::Vector{<:Real}, r::TR where TR<:Real)
     # First create points on the square
     H = sqpts(nH,TD)
     HT = H'
@@ -193,7 +195,7 @@ an appropriate origin and radius.
 
 - `rpd::RepeatedGame` : Two player repeated game.
 - `nH::Int` : Number of subgradients used for the approximation.
-- `TD<:Real` : Type of the discount factor
+- `TD::TP` : Type of the discount factor
 # Returns
 
 - `C::Vector{TD}` : Vector of length `nH` containing the hyperplane levels.
@@ -201,7 +203,7 @@ an appropriate origin and radius.
 - `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
   the value set.
 """
-function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD<:Real)
+function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD::TP where TP<:Real)
     # Choose the origin to be mean of max and min payoffs
     p1_min, p1_max = extrema(rpd.sg.players[1].payoff_array)
     p2_min, p2_max = extrema(rpd.sg.players[2].payoff_array)
@@ -225,7 +227,7 @@ Initialize matrices for the linear programming problems.
 # Arguments
 
 - `rpd::RepeatedGame` : Two player repeated game.
-- `TD<:Real` : Type of the discount factor in the repeated game.
+- `TD::TP` : Type of the discount factor in the repeated game.
 - `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients
   used to approximate the value set, where `nH` is the number of subgradients.
 
@@ -239,7 +241,7 @@ Initialize matrices for the linear programming problems.
 - `b::Vector{TD}` : Vector of length `nH+2` to be filled with
   the values for the constraints.
 """
-function initialize_LP_matrices(rpd::RepGame2, TD<: Real, H::Matrix{<:Real})
+function initialize_LP_matrices(rpd::RepGame2, TD:: TP where TP<:Real, H::Matrix{<:Real})
     # Need total number of subgradients
     nH = size(H, 1)
 
@@ -267,11 +269,11 @@ Given a constraint w ∈ W, this finds the worst possible payoff for agent i.
 
 # Arguments
 
-- `TD<:Real` : Type of the discount factor in the repeated game.
+- `TD::TP` : Type of the discount factor in the repeated game.
 - `rpd::RepGame2` : Two player repeated game.
-- `H::Matrix{<:Real}` : Matrix of shape `(nH, 2)` containing the subgradients
+- `H::Matrix{TM}` : Matrix of shape `(nH, 2)` containing the subgradients
   here `nH` is the number of subgradients.
-- `C::Vector{<:Real}` : The array containing the hyperplane levels.
+- `C::Vector{TC}` : The array containing the hyperplane levels.
 - `i::Int` : The player of interest.
 - `lp_solver::Union{Type{<:MathOptInterface.AbstractOptimizer},Function}` :
   Linear programming solver to be used internally. Pass a
@@ -285,9 +287,9 @@ Given a constraint w ∈ W, this finds the worst possible payoff for agent i.
 
 - `out::TD` : Worst possible payoff for player i.
 """
-function worst_value_i(TD:<:Real,
-    rpd::RepGame2, H::Matrix{TD},
-    C::Vector{TD}, i::Int,
+function worst_value_i(TD::TP where TP<:Real,
+    rpd::RepGame2, H::Matrix{TM} where TM<:Real,
+    C::Vector{TC} where TC<:Real, i::Int,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer}
     # Objective depends on which player we are minimizing
@@ -332,19 +334,19 @@ end
 
 "See `worst_value_i` for documentation"
 worst_value_1(
-    TD:<:Real,
+    TD::TP where TP<:Real,
     rpd::RepGame2,
-    H::Matrix{TD},
-    C::Vector{TD},
+    H::Matrix{TH} where TH<:Real,
+    C::Vector{TC} where TC<:Real,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 1, lp_solver)
 
 "See `worst_value_i` for documentation"
 worst_value_2(
-    TD:<:Real,
+    TD::TP where TP<:Real,
     rpd::RepGame2,
-    H::Matrix{TD},
-    C::Vector{TD},
+    H::Matrix{TH} where TH<:Real,
+    C::Vector{TC} where TC<:Real,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 2, lp_solver)
 
@@ -362,10 +364,10 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
 
 # Arguments
 
-- `TD<:Real` : Type of the discount factor.
+- `TD::TP` : Type of the discount factor.
 - `rpd::RepGame2` : Two player repeated game.
 - `nH::Int` : Number of subgradients used for the approximation.
-- `tol::TD` : Tolerance in differences of set.
+- `tol::TT` : Tolerance in differences of set.
 - `maxiter::Int` : Maximum number of iterations.
 - `check_pure_nash`: Whether to perform a check about whether a pure Nash
   equilibrium exists.
@@ -391,7 +393,7 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
   value set.
 """
 function outerapproximation(
-        TD<:Real, rpd::RepGame2; nH::Int=32, tol::TD=convert(TD,1e-8),
+        TD::TP where TP<:Real, rpd::RepGame2; nH::Int=32, tol::TT where TT<:Real =convert(TT,1e-8),
         maxiter::Int=500, check_pure_nash::Bool=true, verbose::Bool=false,
         nskipprint::Int=50, plib::Polyhedra.Library=default_library(2, Float64),
         lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)

@@ -11,7 +11,7 @@ using CDDLib
 
     # Tests construction of repeated game
     rpd = RepeatedGame(nfg, 0.75)
-    C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0, Float64)
+    C, H, Z = Games.initialize_sg_hpl(Float64, 4, [0.0, 0.0], 1.0)
 
     #
     # Test various helper functions
@@ -37,7 +37,7 @@ using CDDLib
     end
 
     @testset "Testing subgradient and hyperplane level initialize" begin
-        C, H, Z = Games.initialize_sg_hpl(4, [0.0, 0.0], 1.0, Float64)
+        C, H, Z = Games.initialize_sg_hpl(Float64, 4, [0.0, 0.0], 1.0)
 
         @test maximum(abs, C - ones(4)) < 1e-12
         @test maximum(abs, H - Z') < 1e-12
@@ -75,7 +75,7 @@ end
 
     # Tests construction of repeated game
     rpd = RepeatedGame(nfg, 3//4)
-    C, H, Z = Games.initialize_sg_hpl(4, [0, 0], 1, Rational)
+    C, H, Z = Games.initialize_sg_hpl(Rational, 4, [0, 0], 1)
 
     #
     # Test various helper functions
@@ -101,14 +101,14 @@ end
     end
 
     @testset "Testing subgradient and hyperplane level initialize" begin
-        C, H, Z = Games.initialize_sg_hpl(4, [0, 0], 1, Rational)
+        C, H, Z = Games.initialize_sg_hpl(Rational, 4, [0, 0], 1)
 
         @test maximum(abs, C - ones(4)) < 1e-12
         @test maximum(abs, H - Z') < 1e-12
     end
 
     @testset "Testing worst value computation" begin
-        @test abs(worst_value_i(Rational, rpd, H, C, 1, 
+        @test abs(worst_value_i(Rational, rpd, H, C, 1,
                                 CDDLib.Optimizer{Rational}) + 1.0) < 1e-12
     end
 
