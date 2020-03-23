@@ -56,7 +56,7 @@ Helper constructor that builds a repeated game for two players.
 
 - `::RepeatedGame` : The repeated game.
 """
-RepeatedGame(p1::Player, p2::Player, delta::TD) where TD<:Real =
+RepeatedGame(p1::Player, p2::Player, delta::TD) where TD<:Type =
     RepeatedGame(NormalFormGame((p1, p2)), delta)
 
 """
@@ -113,7 +113,7 @@ with x coordinates in first column and y coordinates in second column.
 - `pts::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the coordinates
   of the points.
 """
-function sqpts(npts::Int, TD::TP) where TP <:Real
+function sqpts(npts::Int, TD::TP) where TP <:Type
     # Want our points placed on [0, 1]
     incr = convert(TD,1 // npts)
     degrees = zero(TD):incr:one(TD)
@@ -164,7 +164,8 @@ approximation of the convex value set of a 2 player repeated game.
 - `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
   the value set.
 """
-function initialize_sg_hpl(TD::TP where TP<:Real, nH::Int, o::Vector{<:Real}, r::TR where TR<:Real)
+function initialize_sg_hpl(TD::TP where TP<:Type, nH::Int, o::Vector{<:Real},
+    r::TR where TR<:Real)
     # First create points on the square
     H = sqpts(nH,TD)
     HT = H'
@@ -203,7 +204,7 @@ an appropriate origin and radius.
 - `Z::Matrix{TD}` : Matrix of shape `(nH, 2)` containing the extreme points of
   the value set.
 """
-function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD::TP where TP<:Real)
+function initialize_sg_hpl(rpd::RepeatedGame, nH::Int, TD::TP where TP<:Type)
     # Choose the origin to be mean of max and min payoffs
     p1_min, p1_max = extrema(rpd.sg.players[1].payoff_array)
     p2_min, p2_max = extrema(rpd.sg.players[2].payoff_array)
@@ -241,7 +242,8 @@ Initialize matrices for the linear programming problems.
 - `b::Vector{TD}` : Vector of length `nH+2` to be filled with
   the values for the constraints.
 """
-function initialize_LP_matrices(rpd::RepGame2, TD:: TP where TP<:Real, H::Matrix{<:Real})
+function initialize_LP_matrices(rpd::RepGame2, TD:: TP where TP<:Type,
+    H::Matrix{<:Real})
     # Need total number of subgradients
     nH = size(H, 1)
 
@@ -287,9 +289,9 @@ Given a constraint w ∈ W, this finds the worst possible payoff for agent i.
 
 - `out::TD` : Worst possible payoff for player i.
 """
-function worst_value_i(TD::TP where TP<:Real,
-    rpd::RepGame2, H::Matrix{TM} where TM<:Real,
-    C::Vector{TC} where TC<:Real, i::Int,
+function worst_value_i(TD::TP where TP<:Type,
+    rpd::RepGame2, H::Matrix{TM} where TM<:Type,
+    C::Vector{TC} where TC<:Type, i::Int,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer}
     # Objective depends on which player we are minimizing
@@ -334,19 +336,19 @@ end
 
 "See `worst_value_i` for documentation"
 worst_value_1(
-    TD::TP where TP<:Real,
+    TD::TP where TP<:Type,
     rpd::RepGame2,
-    H::Matrix{TH} where TH<:Real,
-    C::Vector{TC} where TC<:Real,
+    H::Matrix{TH} where TH<:Type,
+    C::Vector{TC} where TC<:Type,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 1, lp_solver)
 
 "See `worst_value_i` for documentation"
 worst_value_2(
-    TD::TP where TP<:Real,
+    TD::TP where TP<:Type,
     rpd::RepGame2,
-    H::Matrix{TH} where TH<:Real,
-    C::Vector{TC} where TC<:Real,
+    H::Matrix{TH} where TH<:Type,
+    C::Vector{TC} where TC<:Type,
     lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
 ) where {TO<:MOI.AbstractOptimizer} = worst_value_i(rpd, H, C, 2, lp_solver)
 
@@ -393,7 +395,7 @@ hyperplane approximation described by Judd, Yeltekin, Conklin (2002).
   value set.
 """
 function outerapproximation(
-        TD::TP where TP<:Real, rpd::RepGame2; nH::Int=32, tol::TT where TT<:Real =convert(TT,1e-8),
+        TD::TP where TP<:Type, rpd::RepGame2; nH::Int=32, tol::Float64=1e-8,
         maxiter::Int=500, check_pure_nash::Bool=true, verbose::Bool=false,
         nskipprint::Int=50, plib::Polyhedra.Library=default_library(2, Float64),
         lp_solver::Union{Type{TO},Function}=() -> Clp.Optimizer(LogLevel=0)
